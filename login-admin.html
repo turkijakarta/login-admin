@@ -164,14 +164,81 @@
         </div>
     </div>
 
-    <script>
-        // Admin credentials (in real app, this should be handled securely)
-        const ADMIN_CREDENTIALS = {
-            username: 'admin',
-            password: 'admin123'
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword,
+            onAuthStateChanged,
+            signOut
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { 
+            getFirestore, 
+            doc, 
+            getDoc,
+            setDoc,
+            serverTimestamp
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCDbfLOHuzxxcvDrQk1tbaint4oxlEm6q4",
+            authDomain: "blacklist-354bd.firebaseapp.com",
+            projectId: "blacklist-354bd",
+            storageBucket: "blacklist-354bd.firebasestorage.app",
+            messagingSenderId: "1028611915291",
+            appId: "1:1028611915291:web:df961356cab0a2d52582be",
+            measurementId: "G-SVKH95E2X7"
         };
 
-        function handleLogin(event) {
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Make functions globally available
+        window.auth = auth;
+        window.db = db;
+        window.doc = doc;
+        window.getDoc = getDoc;
+        window.setDoc = setDoc;
+        window.serverTimestamp = serverTimestamp;
+        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+        window.onAuthStateChanged = onAuthStateChanged;
+        window.signOut = signOut;
+    </script>
+
+    <script>
+        // Check if admin is already logged in
+        function checkAdminAuth() {
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    // Check if user is admin
+                    checkIfAdmin(user);
+                }
+            });
+        }
+
+        // Check if user is admin
+        async function checkIfAdmin(user) {
+            try {
+                const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+                if (adminDoc.exists()) {
+                    // User is admin, redirect to dashboard
+                    window.location.href = 'dashboard-admin.html';
+                } else {
+                    // User is not admin, sign out
+                    await signOut(auth);
+                }
+            } catch (error) {
+                console.error('Error checking admin status:', error);
+                await signOut(auth);
+            }
+        }
+
+        // Handle login
+        async function handleLogin(event) {
             event.preventDefault();
             
             const username = document.getElementById('username').value;
@@ -182,14 +249,14 @@
             document.querySelectorAll('.error-message').forEach(el => el.style.display = 'none');
             
             // Validate
-            if (username !== ADMIN_CREDENTIALS.username) {
-                document.getElementById('usernameError').textContent = 'Username tidak valid';
+            if (!username) {
+                document.getElementById('usernameError').textContent = 'Username wajib diisi';
                 document.getElementById('usernameError').style.display = 'block';
                 return;
             }
             
-            if (password !== ADMIN_CREDENTIALS.password) {
-                document.getElementById('passwordError').textContent = 'Password tidak valid';
+            if (!password) {
+                document.getElementById('passwordError').textContent = 'Password wajib diisi';
                 document.getElementById('passwordError').style.display = 'block';
                 return;
             }
@@ -197,15 +264,58 @@
             // Show loading
             loading.style.display = 'block';
             
-            // Simulate login process
-            setTimeout(() => {
-                // Store admin session
-                sessionStorage.setItem('isAdminLoggedIn', 'true');
+            try {
+                // Create email from username (admin@domain.com)
+                const email = username + '@blacklist-turki.com';
                 
-                // Redirect to dashboard
-                window.location.href = 'dashboard-admin.html';
-            }, 1000);
+                // Try to sign in
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                // Check if user is admin
+                const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+                
+                if (adminDoc.exists()) {
+                    // Store admin session
+                    sessionStorage.setItem('isAdminLoggedIn', 'true');
+                    sessionStorage.setItem('adminUid', user.uid);
+                    
+                    // Redirect to dashboard
+                    window.location.href = 'dashboard-admin.html';
+                } else {
+                    // User is not admin
+                    await signOut(auth);
+                    alert('Anda tidak memiliki akses admin');
+                }
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                let errorMessage = 'Terjadi kesalahan saat login';
+                
+                if (error.code === 'auth/user-not-found') {
+                    errorMessage = 'Username atau password salah';
+                } else if (error.code === 'auth/wrong-password') {
+                    errorMessage = 'Username atau password salah';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = 'Format username tidak valid';
+                } else if (error.code === 'auth/too-many-requests') {
+                    errorMessage = 'Terlalu banyak percobaan. Coba lagi nanti';
+                }
+                
+                document.getElementById('passwordError').textContent = errorMessage;
+                document.getElementById('passwordError').style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+            }
         }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAdminAuth();
+        });
+
+        // Make functions globally available
+        window.handleLogin = handleLogin;
     </script>
 </body>
 </html>
