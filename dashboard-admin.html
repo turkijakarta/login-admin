@@ -77,6 +77,13 @@
         .nav-btn:hover {
             background: rgba(255, 255, 255, 0.3);
         }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--white);
+            font-size: 14px;
+        }
         /* Container */
         .container {
             max-width: 1200px;
@@ -332,6 +339,35 @@
         .btn-submit:hover {
             background: var(--primary-red-dark);
         }
+        /* File Info */
+        .file-info {
+            background: var(--light-gray);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-top: 15px;
+        }
+        .file-info h5 {
+            color: var(--primary-red);
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        .file-item:last-child {
+            border-bottom: none;
+        }
+        .file-name {
+            font-weight: 500;
+        }
+        .file-size {
+            font-size: 12px;
+            color: var(--neutral-gray);
+        }
     </style>
 </head>
 <body>
@@ -342,7 +378,10 @@
             <div class="nav-title">Admin Panel - Sistem Blacklist Turki</div>
         </div>
         <div class="nav-actions">
-            <button class="nav-btn" onclick="refreshData()">Refresh Data</button>
+            <div class="user-info">
+                <span id="adminName">Loading...</span>
+            </div>
+            <button class="nav-btn" onclick="refreshData()">Refresh</button>
             <button class="nav-btn" onclick="logout()">Logout</button>
         </div>
     </nav>
@@ -451,6 +490,11 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { 
+            getAuth, 
+            onAuthStateChanged,
+            signOut
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { 
             getFirestore, 
             collection, 
             query, 
@@ -458,7 +502,8 @@
             getDocs,
             doc,
             updateDoc,
-            serverTimestamp
+            serverTimestamp,
+            onSnapshot
         } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase configuration
@@ -474,9 +519,11 @@
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const db = getFirestore(app);
 
         // Make functions globally available
+        window.auth = auth;
         window.db = db;
         window.collection = collection;
         window.query = query;
@@ -485,16 +532,52 @@
         window.doc = doc;
         window.updateDoc = updateDoc;
         window.serverTimestamp = serverTimestamp;
+        window.onSnapshot = onSnapshot;
+        window.onAuthStateChanged = onAuthStateChanged;
+        window.signOut = signOut;
     </script>
 
     <script>
+        let currentAdmin = null;
         let currentApplicationId = null;
 
         // Check admin authentication
-        function checkAuth() {
+        function checkAdminAuth() {
             const isLoggedIn = sessionStorage.getItem('isAdminLoggedIn');
-            if (!isLoggedIn) {
+            const adminUid = sessionStorage.getItem('adminUid');
+            
+            if (!isLoggedIn || !adminUid) {
                 window.location.href = 'login-admin.html';
+                return;
+            }
+
+            onAuthStateChanged(auth, (user) => {
+                if (!user) {
+                    window.location.href = 'login-admin.html';
+                    return;
+                }
+
+                if (user.uid !== adminUid) {
+                    window.location.href = 'login-admin.html';
+                    return;
+                }
+
+                currentAdmin = user;
+                loadAdminInfo();
+                loadApplications();
+            });
+        }
+
+        // Load admin information
+        async function loadAdminInfo() {
+            try {
+                const adminDoc = await getDoc(doc(db, 'admins', currentAdmin.uid));
+                if (adminDoc.exists()) {
+                    const adminData = adminDoc.data();
+                    document.getElementById('adminName').textContent = adminData.name || 'Admin';
+                }
+            } catch (error) {
+                console.error('Error loading admin info:', error);
             }
         }
 
@@ -596,6 +679,15 @@
             });
         }
 
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
         // View application details
         async function viewApplication(applicationId) {
             try {
@@ -607,64 +699,94 @@
                     const modalContent = document.getElementById('modalContent');
                     
                     modalContent.innerHTML = `
-                        <div class="application-details">
-                            <h3>Informasi Pribadi</h3>
-                            <div class="payment-details">
-                                <div class="detail-item">
-                                    <span class="detail-label">Nama Lengkap</span>
-                                    <span class="detail-value">${app.fullName}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Email</span>
-                                    <span class="detail-value">${app.email}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Nomor Telepon</span>
-                                    <span class="detail-value">${app.phone}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Tanggal Lahir</span>
-                                    <span class="detail-value">${app.birthDate}</span>
-                                </div>
+                        <h3>Informasi Pribadi</h3>
+                        <div class="payment-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Nama Lengkap</span>
+                                <span class="detail-value">${app.fullName}</span>
                             </div>
-                            
-                            <h3 style="margin-top: 25px;">Informasi Blacklist</h3>
-                            <div class="payment-details">
-                                <div class="detail-item">
-                                    <span class="detail-label">Nomor Paspor</span>
-                                    <span class="detail-value">${app.passportNumber}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Tanggal Blacklist</span>
-                                    <span class="detail-value">${app.blacklistDate}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Alasan Blacklist</span>
-                                    <span class="detail-value">${app.blacklistReason}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Penjelasan</span>
-                                    <span class="detail-value">${app.explanation || '-'}</span>
-                                </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Email</span>
+                                <span class="detail-value">${app.email}</span>
                             </div>
-                            
-                            <h3 style="margin-top: 25px;">Status Pengajuan</h3>
-                            <div class="payment-details">
-                                <div class="detail-item">
-                                    <span class="detail-label">Status Saat Ini</span>
-                                    <span class="detail-value">${getStatusText(app.status)}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Tanggal Pengajuan</span>
-                                    <span class="detail-value">${formatDate(app.createdAt)}</span>
-                                </div>
-                                ${app.paymentInfo ? `
-                                    <div class="detail-item">
-                                        <span class="detail-label">Informasi Pembayaran</span>
-                                        <span class="detail-value">Sudah dikirim</span>
+                            <div class="detail-item">
+                                <span class="detail-label">Nomor Telepon</span>
+                                <span class="detail-value">${app.phone}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Tanggal Lahir</span>
+                                <span class="detail-value">${app.birthDate}</span>
+                            </div>
+                        </div>
+                        
+                        <h3 style="margin-top: 25px;">Informasi Blacklist</h3>
+                        <div class="payment-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Nomor Paspor</span>
+                                <span class="detail-value">${app.passportNumber}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Tanggal Blacklist</span>
+                                <span class="detail-value">${app.blacklistDate}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Alasan Blacklist</span>
+                                <span class="detail-value">${app.blacklistReason}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Penjelasan</span>
+                                <span class="detail-value">${app.explanation || '-'}</span>
+                            </div>
+                        </div>
+                        
+                        ${app.files ? `
+                            <div class="file-info">
+                                <h5>Dokumen Pendukung</h5>
+                                ${app.files.passport ? `
+                                    <div class="file-item">
+                                        <span class="file-name">Paspor</span>
+                                        <span class="file-size">${app.files.passport.name} (${formatFileSize(app.files.passport.size)})</span>
+                                    </div>
+                                ` : '<div class="file-item"><span class="file-name">Paspor</span><span class="file-size">Tidak diupload</span></div>'}
+                                
+                                ${app.files.ktp ? `
+                                    <div class="file-item">
+                                        <span class="file-name">KTP</span>
+                                        <span class="file-size">${app.files.ktp.name} (${formatFileSize(app.files.ktp.size)})</span>
+                                    </div>
+                                ` : '<div class="file-item"><span class="file-name">KTP</span><span class="file-size">Tidak diupload</span></div>'}
+                                
+                                ${app.files.other ? `
+                                    <div class="file-item">
+                                        <span class="file-name">Dokumen Lain</span>
+                                        <span class="file-size">${app.files.other.name} (${formatFileSize(app.files.other.size)})</span>
                                     </div>
                                 ` : ''}
                             </div>
+                        ` : ''}
+                        
+                        <h3 style="margin-top: 25px;">Status Pengajuan</h3>
+                        <div class="payment-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Status Saat Ini</span>
+                                <span class="detail-value">${getStatusText(app.status)}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Tanggal Pengajuan</span>
+                                <span class="detail-value">${formatDate(app.createdAt)}</span>
+                            </div>
+                            ${app.paymentInfo ? `
+                                <div class="detail-item">
+                                    <span class="detail-label">Informasi Pembayaran</span>
+                                    <span class="detail-value">Sudah dikirim</span>
+                                </div>
+                            ` : ''}
+                            ${app.rejectionReason ? `
+                                <div class="detail-item">
+                                    <span class="detail-label">Alasan Penolakan</span>
+                                    <span class="detail-value">${app.rejectionReason}</span>
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                     
@@ -759,15 +881,21 @@
         }
 
         // Logout
-        function logout() {
-            sessionStorage.removeItem('isAdminLoggedIn');
-            window.location.href = 'login-admin.html';
+        async function logout() {
+            try {
+                await signOut(auth);
+                sessionStorage.removeItem('isAdminLoggedIn');
+                sessionStorage.removeItem('adminUid');
+                window.location.href = 'login-admin.html';
+            } catch (error) {
+                console.error('Error signing out:', error);
+                alert('Terjadi kesalahan saat logout');
+            }
         }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            checkAuth();
-            loadApplications();
+            checkAdminAuth();
         });
 
         // Make functions globally available
