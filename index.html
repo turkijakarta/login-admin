@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Admin - Sistem Blacklist Turki</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        :root {
+            --primary-red: #E30A17;
+            --primary-red-dark: #B30812;
+            --secondary-red: #C00914;
+            --accent-white: #FFFFFF;
+            --accent-gray: #F8F8F8;
+            --success-green: #10b981;
+            --warning-orange: #f97316;
+            --error-red: #ef4444;
+            --neutral-gray: #6b7280;
+            --light-gray: #f3f4f6;
+            --white: #ffffff;
+            --dark-text: #333333;
+            --shadow-light: rgba(0, 0, 0, 0.1);
+            --shadow-medium: rgba(0, 0, 0, 0.15);
+            --shadow-heavy: rgba(0, 0, 0, 0.25);
+            --border-radius: 8px;
+            --border-radius-lg: 12px;
+            --transition: all 0.3s ease;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--primary-red) 0%, var(--primary-red-dark) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .login-container {
+            background: var(--white);
+            border-radius: var(--border-radius-lg);
+            box-shadow: 0 10px 30px var(--shadow-heavy);
+            width: 100%;
+            max-width: 400px;
+            overflow: hidden;
+        }
+        .login-header {
+            background: linear-gradient(135deg, var(--primary-red) 0%, var(--primary-red-dark) 100%);
+            color: var(--white);
+            padding: 30px;
+            text-align: center;
+        }
+        .login-logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            filter: brightness(0) invert(1);
+        }
+        .login-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .login-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        .login-body {
+            padding: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark-text);
+            font-size: 14px;
+        }
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--light-gray);
+            border-radius: var(--border-radius);
+            font-size: 16px;
+            transition: var(--transition);
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-red);
+            box-shadow: 0 0 0 3px rgba(227, 10, 23, 0.1);
+        }
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--primary-red) 0%, var(--primary-red-dark) 100%);
+            color: var(--white);
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-top: 10px;
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(227, 10, 23, 0.4);
+        }
+        .error-message {
+            color: var(--error-red);
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--light-gray);
+            border-top-color: var(--primary-red);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .success-message {
+            background: var(--success-green);
+            color: var(--white);
+            padding: 12px;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <img src="https://static.vecteezy.com/system/resources/thumbnails/015/272/017/small/turkey-3d-rounded-flag-with-transparent-background-free-png.png" alt="Turki Flag" class="login-logo">
+            <h1 class="login-title">Admin Panel</h1>
+            <p class="login-subtitle">Sistem Blacklist Turki</p>
+        </div>
+        <div class="login-body">
+            <div class="success-message" id="successMessage">
+                Login berhasil! Mengalihkan ke dashboard...
+            </div>
+            
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Admin</label>
+                    <input type="email" id="email" class="form-input" placeholder="admin@blacklist-turki.com" required>
+                    <div class="error-message" id="emailError"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" id="password" class="form-input" placeholder="Masukkan password" required>
+                    <div class="error-message" id="passwordError"></div>
+                </div>
+                <button type="submit" class="btn-login" id="loginBtn">
+                    <span id="loginBtnText">Login Admin</span>
+                    <div class="loading-spinner" id="loginSpinner" style="display: none;"></div>
+                </button>
+            </form>
+            
+            <div class="loading" id="loading">
+                <div class="loading-spinner"></div>
+                <p style="margin-top: 10px; color: var(--neutral-gray);">Memuat...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword,
+            onAuthStateChanged,
+            signOut
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { 
+            getFirestore, 
+            doc, 
+            getDoc,
+            setDoc,
+            serverTimestamp
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCDbfLOHuzxxcvDrQk1tbaint4oxlEm6q4",
+            authDomain: "blacklist-354bd.firebaseapp.com",
+            projectId: "blacklist-354bd",
+            storageBucket: "blacklist-354bd.firebasestorage.app",
+            messagingSenderId: "1028611915291",
+            appId: "1:1028611915291:web:df961356cab0a2d52582be",
+            measurementId: "G-SVKH95E2X7"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Make functions globally available
+        window.auth = auth;
+        window.db = db;
+        window.doc = doc;
+        window.getDoc = getDoc;
+        window.setDoc = setDoc;
+        window.serverTimestamp = serverTimestamp;
+        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+        window.onAuthStateChanged = onAuthStateChanged;
+        window.signOut = signOut;
+    </script>
+
+    <script>
+        // Check if admin is already logged in
+        function checkAdminAuth() {
+            const isLoggedIn = sessionStorage.getItem('isAdminLoggedIn');
+            const adminUid = sessionStorage.getItem('adminUid');
+            
+            if (isLoggedIn && adminUid) {
+                // Verify admin status
+                verifyAdminStatus(adminUid);
+            } else {
+                // Check current auth state
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        verifyAdminStatus(user.uid);
+                    }
+                });
+            }
+        }
+
+        // Verify admin status
+        async function verifyAdminStatus(uid) {
+            try {
+                const adminDoc = await getDoc(doc(db, 'admins', uid));
+                if (adminDoc.exists()) {
+                    // Valid admin, redirect to dashboard
+                    window.location.href = 'dashboard-admin.html';
+                } else {
+                    // Not an admin, clear session
+                    sessionStorage.removeItem('isAdminLoggedIn');
+                    sessionStorage.removeItem('adminUid');
+                    await signOut(auth);
+                }
+            } catch (error) {
+                console.error('Error verifying admin status:', error);
+                sessionStorage.removeItem('isAdminLoggedIn');
+                sessionStorage.removeItem('adminUid');
+                await signOut(auth);
+            }
+        }
+
+        // Handle login
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const loading = document.getElementById('loading');
+            const loginBtn = document.getElementById('loginBtn');
+            const loginBtnText = document.getElementById('loginBtnText');
+            const loginSpinner = document.getElementById('loginSpinner');
+            const successMessage = document.getElementById('successMessage');
+            
+            // Clear errors
+            document.querySelectorAll('.error-message').forEach(el => el.style.display = 'none');
+            successMessage.style.display = 'none';
+            
+            // Validate
+            if (!email) {
+                document.getElementById('emailError').textContent = 'Email wajib diisi';
+                document.getElementById('emailError').style.display = 'block';
+                return;
+            }
+            
+            if (!password) {
+                document.getElementById('passwordError').textContent = 'Password wajib diisi';
+                document.getElementById('passwordError').style.display = 'block';
+                return;
+            }
+            
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                document.getElementById('emailError').textContent = 'Format email tidak valid';
+                document.getElementById('emailError').style.display = 'block';
+                return;
+            }
+            
+            // Show loading
+            loading.style.display = 'block';
+            loginBtn.disabled = true;
+            loginBtnText.style.display = 'none';
+            loginSpinner.style.display = 'block';
+            
+            try {
+                // Try to sign in
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                // Check if user is admin
+                const adminDoc = await getDoc(doc(db, 'admins', user.uid));
+                
+                if (adminDoc.exists()) {
+                    // Valid admin
+                    const adminData = adminDoc.data();
+                    
+                    // Store admin session
+                    sessionStorage.setItem('isAdminLoggedIn', 'true');
+                    sessionStorage.setItem('adminUid', user.uid);
+                    sessionStorage.setItem('adminName', adminData.name || 'Admin');
+                    
+                    // Show success message
+                    successMessage.style.display = 'block';
+                    
+                    // Redirect to dashboard after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = 'dashboard-admin.html';
+                    }, 2000);
+                    
+                } else {
+                    // User is not admin
+                    await signOut(auth);
+                    throw new Error('Anda tidak memiliki akses admin');
+                }
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                let errorMessage = 'Terjadi kesalahan saat login';
+                
+                switch (error.code) {
+                    case 'auth/user-not-found':
+                        errorMessage = 'Email tidak terdaftar';
+                        break;
+                    case 'auth/wrong-password':
+                        errorMessage = 'Password salah';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'Format email tidak valid';
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMessage = 'Terlalu banyak percobaan. Coba lagi nanti';
+                        break;
+                    case 'auth/user-disabled':
+                        errorMessage = 'Akun telah dinonaktifkan';
+                        break;
+                    default:
+                        if (error.message === 'Anda tidak memiliki akses admin') {
+                            errorMessage = 'Anda tidak memiliki akses admin';
+                        } else {
+                            errorMessage = error.message || 'Terjadi kesalahan tidak diketahui';
+                        }
+                }
+                
+                document.getElementById('passwordError').textContent = errorMessage;
+                document.getElementById('passwordError').style.display = 'block';
+                
+            } finally {
+                // Hide loading
+                loading.style.display = 'none';
+                loginBtn.disabled = false;
+                loginBtnText.style.display = 'block';
+                loginSpinner.style.display = 'none';
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAdminAuth();
+        });
+
+        // Make functions globally available
+        window.handleLogin = handleLogin;
+    </script>
+</body>
+</html>
